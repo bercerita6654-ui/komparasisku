@@ -1,0 +1,6 @@
+{
+  "name": "Komparasi SKU & Stok",
+  "description": "Aplikasi untuk komparasi SKU dan stok produk Shopee dan Tokopedia dengan data STOCK LIST AIO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
