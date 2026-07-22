@@ -25,7 +25,8 @@ import {
   Info,
   AlertCircle,
   HelpCircle,
-  TrendingDown
+  TrendingDown,
+  RotateCcw
 } from 'lucide-react';
 import {
   Marketplace,
@@ -60,17 +61,106 @@ export default function App() {
   const [sortOnly2, setSortOnly2] = useState<string>('');
 
   // Gamification & Mission States
-  const [selectedForMission, setSelectedForMission] = useState<string[]>([]);
-  const [selectedForMissionDisc, setSelectedForMissionDisc] = useState<string[]>([]);
-  const [queueTimestamps, setQueueTimestamps] = useState<Record<string, number>>({});
-  const [queueTimestampsDisc, setQueueTimestampsDisc] = useState<Record<string, number>>({});
-  const [lastDurationRecord, setLastDurationRecord] = useState<string>("-");
-  const [lastDurationRecordDisc, setLastDurationRecordDisc] = useState<string>("-");
+  const [selectedForMission, setSelectedForMission] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('selectedForMission');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [selectedForMissionDisc, setSelectedForMissionDisc] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('selectedForMissionDisc');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [queueTimestamps, setQueueTimestamps] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('queueTimestamps');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [queueTimestampsDisc, setQueueTimestampsDisc] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('queueTimestampsDisc');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [lastDurationRecord, setLastDurationRecord] = useState<string>(() => {
+    return localStorage.getItem('lastDurationRecord') || "-";
+  });
+  const [lastDurationRecordDisc, setLastDurationRecordDisc] = useState<string>(() => {
+    return localStorage.getItem('lastDurationRecordDisc') || "-";
+  });
 
-  const [savedUploadData, setSavedUploadData] = useState<Record<string, boolean>>({});
-  const [savedDiscData, setSavedDiscData] = useState<Record<string, boolean>>({});
+  const [savedUploadData, setSavedUploadData] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('aioSyncData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.uploaded || {};
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  });
+  const [savedDiscData, setSavedDiscData] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('aioSyncData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.disc || {};
+      }
+    } catch {
+      return {};
+    }
+    return {};
+  });
 
   const dailyMissionTarget = 5;
+
+  // Effects to sync Gamification States to localStorage
+  useEffect(() => {
+    localStorage.setItem('selectedForMission', JSON.stringify(selectedForMission));
+  }, [selectedForMission]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedForMissionDisc', JSON.stringify(selectedForMissionDisc));
+  }, [selectedForMissionDisc]);
+
+  useEffect(() => {
+    localStorage.setItem('queueTimestamps', JSON.stringify(queueTimestamps));
+  }, [queueTimestamps]);
+
+  useEffect(() => {
+    localStorage.setItem('queueTimestampsDisc', JSON.stringify(queueTimestampsDisc));
+  }, [queueTimestampsDisc]);
+
+  useEffect(() => {
+    localStorage.setItem('lastDurationRecord', lastDurationRecord);
+  }, [lastDurationRecord]);
+
+  useEffect(() => {
+    localStorage.setItem('lastDurationRecordDisc', lastDurationRecordDisc);
+  }, [lastDurationRecordDisc]);
+
+  // Save to Local Storage Helper for completed items
+  const saveToLocal = (uploaded: Record<string, boolean>, disc: Record<string, boolean>) => {
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem('aioSyncData', JSON.stringify({
+      date: today,
+      uploaded,
+      disc
+    }));
+  };
 
   // Notification Toast State
   const [notification, setNotification] = useState<{ title: string; text: string; show: boolean; isWarning: boolean }>({
@@ -109,37 +199,6 @@ export default function App() {
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Local Storage Load
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const stored = localStorage.getItem('aioSyncData');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed.date === today) {
-          setSavedUploadData(parsed.uploaded || {});
-          setSavedDiscData(parsed.disc || {});
-        } else {
-          localStorage.setItem('aioSyncData', JSON.stringify({ date: today, uploaded: {}, disc: {} }));
-        }
-      } catch (e) {
-        localStorage.setItem('aioSyncData', JSON.stringify({ date: today, uploaded: {}, disc: {} }));
-      }
-    } else {
-      localStorage.setItem('aioSyncData', JSON.stringify({ date: today, uploaded: {}, disc: {} }));
-    }
-  }, []);
-
-  // Save to Local Storage Helper
-  const saveToLocal = (uploaded: Record<string, boolean>, disc: Record<string, boolean>) => {
-    const today = new Date().toISOString().split('T')[0];
-    localStorage.setItem('aioSyncData', JSON.stringify({
-      date: today,
-      uploaded,
-      disc
-    }));
-  };
 
   // Results State
   const [comparisonResults, setComparisonResults] = useState<ComparisonResults>({
@@ -1820,11 +1879,39 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-center shadow-inner self-center flex items-center justify-center gap-1 min-w-[70px]">
-              <span className={`text-xl font-extrabold ${activeTab === 'only2' ? 'text-indigo-600' : 'text-amber-600'}`}>
-                {activeMissionCount}
-              </span>
-              <span className="text-slate-400 font-bold text-xs">/ 5</span>
+            <div className="flex items-center gap-1.5 self-center">
+              <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-center shadow-inner flex items-center justify-center gap-1 min-w-[70px]">
+                <span className={`text-xl font-extrabold ${activeTab === 'only2' ? 'text-indigo-600' : 'text-amber-600'}`}>
+                  {activeMissionCount}
+                </span>
+                <span className="text-slate-400 font-bold text-xs">/ 5</span>
+              </div>
+              <button
+                onClick={() => {
+                  const missionName = activeTab === 'only2' ? 'Upload' : 'Arsip';
+                  if (window.confirm(`Apakah Anda yakin ingin me-reset semua progres misi harian ${missionName} ini?`)) {
+                    if (activeTab === 'only2') {
+                      setSavedUploadData({});
+                      saveToLocal({}, savedDiscData);
+                      setSelectedForMission([]);
+                      setQueueTimestamps({});
+                      setLastDurationRecord("-");
+                      triggerNotification("Misi Di-reset", "Semua progres target upload telah dibersihkan.", false);
+                    } else {
+                      setSavedDiscData({});
+                      saveToLocal(savedUploadData, {});
+                      setSelectedForMissionDisc([]);
+                      setQueueTimestampsDisc({});
+                      setLastDurationRecordDisc("-");
+                      triggerNotification("Misi Di-reset", "Semua progres target arsip telah dibersihkan.", false);
+                    }
+                  }
+                }}
+                className="p-2.5 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all border border-slate-200 hover:border-rose-150 bg-white shadow-xs cursor-pointer flex items-center justify-center"
+                title="Reset Progres Misi"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
